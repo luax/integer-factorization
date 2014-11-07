@@ -87,15 +87,17 @@ mpz_class PollardsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand) {
     if (n % 7 == 0) return 7; // TODO
 
     mpz_class x = rand.get_z_range(n+1); // [0, n]
-    mpz_class y = rand.get_z_range(n+1);
+    mpz_class y = x;
+    mpz_class c = rand.get_z_range(n+1);
     mpz_class d = 1;
-    mpz_class diff_abs = 0; 
+    mpz_class diff_abs = 0;
 
-    auto g = [] (mpz_class x, mpz_class n) -> mpz_class { return (x * x + 1) % n; };
+    auto g = [] (mpz_class& x, mpz_class& c, const mpz_class& n) -> mpz_class { return ((x * x ) % n + c) % n; };
 
     while (d == 1) {
-        x = g(x, n);
-        y = g(g(y, n), n);
+        x = g(x, c, n);
+        y = g(y, c, n);
+        y = g(y, c, n);
         diff_abs = abs(x-y);
         d = BinaryGCD(diff_abs, n); // Debug: mpz_gcd (d.get_mpz_t(), diff.get_mpz_t(), n.get_mpz_t());
         if (d == n) { // TODO
