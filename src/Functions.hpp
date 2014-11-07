@@ -1,4 +1,5 @@
 #include <gmpxx.h>
+#include <iostream>
 
 mpz_class BinaryGCD(mpz_class& u, mpz_class v) {
     if (u == 0) return v;
@@ -26,7 +27,7 @@ mpz_class BinaryGCD(mpz_class& u, mpz_class v) {
     return v * g;
 }
 
-mpz_class ModularExponentiation(mpz_class& base, mpz_class exponent, const mpz_class& modulus) {
+mpz_class ModularExponentiation(mpz_class& base, mpz_class& exponent, const mpz_class& modulus) {
     mpz_class result = 1;
     base = base % modulus;
 
@@ -55,8 +56,7 @@ bool MillerRabinPrime(const mpz_class& n, size_t k, gmp_randclass& rand) {
 
     // k times
     for (size_t i = 0; i < k; ++i) {
-        mpz_class a = 2 + rand.get_z_range(n) - 1; // Random number [2, n-2]
-
+        mpz_class a = 2 + rand.get_z_range(n-3); // Random number [2, n-2]
         mpz_class x = ModularExponentiation(a, d, n); // Debugging: mpz_powm(x.get_mpz_t(), a.get_mpz_t(), d.get_mpz_t(), n.get_mpz_t());
 
         if (x == 1 || x == (n - 1)) {
@@ -64,9 +64,8 @@ bool MillerRabinPrime(const mpz_class& n, size_t k, gmp_randclass& rand) {
         }
 
         // s - 1 times
-        for (size_t j = 0; j < s; ++j) {
+        for (mpz_class j = 0; j < s; ++j) {
             x = (x * x) % n;
-
             if (x == 1) {
                 return false;
             } else if (x == (n - 1)) {
