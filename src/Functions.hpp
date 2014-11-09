@@ -1,4 +1,5 @@
 #include <gmpxx.h>
+#include <atomic>
 #include <iostream>
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -108,7 +109,7 @@ mpz_class PollardsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand) {
     return d;
 }
 
-mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand) {
+mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand, const std::atomic<bool>& interrupt) {
     // http://maths-people.anu.edu.au/~brent/pd/rpb051i.pdf
     mpz_class c = 1 + rand.get_z_range(n+1);
     mpz_class y = rand.get_z_range(n+1);
@@ -124,13 +125,13 @@ mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand) {
 
     auto f = [&n, &c] (mpz_class& x) -> mpz_class { return ((x * x ) + c) % n; };
 
-    while(g == 1) {
+    while(g == 1 && !interrupt) {
         x = y;
         for (mpz_class i = 0; i < r; ++i) {
             y = f(y);
         }
         k = 0;
-        while(k < r && g == 1) {
+        while((k < r && g == 1) && !interrupt) {
             ys = y;
             mpz_class bound = MIN(m, r-k);
             for (mpz_class i = 0; i < bound; ++i) {
@@ -148,7 +149,7 @@ mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand) {
             ys = f(ys);
             mpz_class diff = abs(x-ys);
             g = BinaryGCD(diff, n);
-        } while(g == 1);
+        } while(g == 1 && !interrupt);
     }
 
     //if(g == n) {
