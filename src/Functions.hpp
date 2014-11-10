@@ -1,6 +1,9 @@
 #include <gmpxx.h>
 #include <atomic>
 #include <iostream>
+#ifndef FUNCTIONS_H
+#define FUNCTIONS_H
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
 mpz_class BinaryGCD(mpz_class u, mpz_class v) {
@@ -82,34 +85,21 @@ bool MillerRabinPrime(const mpz_class& n, size_t k, gmp_randclass& rand) {
     return true;
 }
 
-mpz_class PollardsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand) {
-    if (n % 2 == 0) return 2; // TODO
-    if (n % 3 == 0) return 3; // TODO
-    if (n % 5 == 0) return 5; // TODO
-    if (n % 7 == 0) return 7; // TODO
-
-    mpz_class x = rand.get_z_range(n+1); // [0, n]
-    mpz_class y = x;
-    mpz_class c = 1 + rand.get_z_range(n+1);
-    mpz_class d = 1;
-    mpz_class diff_abs = 0;
-
-    auto g = [&n, &c] (mpz_class& x) -> mpz_class { return ((x * x ) + c) % n; }; // TODO
-
-    while (d == 1) {
-        x = g(x);
-        y = g(y);
-        y = g(y);
-        diff_abs = abs(x-y);
-        d = BinaryGCD(diff_abs, n); // Debug: mpz_gcd (d.get_mpz_t(), diff.get_mpz_t(), n.get_mpz_t());
-        if (d == n) { // TODO
-            break;
+mpz_class Naive(const mpz_class& n, int k) {
+    for (int i = 2; i < k; ++i) {
+        if (n % i == 0) {
+            return i;
         }
     }
-    return d;
+    return -1;
 }
 
 mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand, const std::atomic<bool>& interrupt) {
+    mpz_class divisor = Naive(n, 10000000);
+    if (divisor != -1) {
+        return divisor;
+    }
+
     // http://maths-people.anu.edu.au/~brent/pd/rpb051i.pdf
     mpz_class c = 1 + rand.get_z_range(n+1);
     mpz_class y = rand.get_z_range(n+1);
@@ -159,4 +149,4 @@ mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand, const std:
     return g;
 }
 
-
+#endif /* FUNCTIONS_H */

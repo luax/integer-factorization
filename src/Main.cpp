@@ -129,7 +129,11 @@ int main(int argc, char **argv) {
                 std::this_thread::sleep_for(std::chrono::seconds(sleep_for));
             }
         }
+        std::clog << "LOG: waiting..." << std::endl;
         t.join();
+        std::clog << "LOG: lets go :)" << std::endl;
     }
+
+    std::clog << "LOG: Done!" << std::endl;
     return 0;
 }
