@@ -6,6 +6,24 @@
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
+std::vector<long> SieveOfEratosthenes(long b) {
+    std::vector<long> primes;
+    std::vector<bool> a(b, true);
+    for (int i = 2; i <= sqrt(b); ++i) {
+        if (a[i]) {
+            for (int j = i * i; j <= b; j += i) {
+                a[j] = false;
+            }
+        }
+    }
+    for (int i = 2; i < b; ++i) {
+        if (a[i]) {
+            primes.push_back(i);
+        }
+    }
+    return primes;
+}
+
 mpz_class BinaryGCD(mpz_class u, mpz_class v) {
     if (u == 0) return v;
     if (v == 0) return u;
@@ -85,25 +103,26 @@ bool MillerRabinPrime(const mpz_class& n, size_t k, gmp_randclass& rand) {
     return true;
 }
 
-mpz_class Naive(const mpz_class& n, int k) {
-    for (int i = 2; i < k; ++i) {
-        if (n % i == 0) {
-            return i;
+mpz_class Naive(const mpz_class& n) {
+    std::vector<long> primes = SieveOfEratosthenes(10000000);
+    for (size_t i = 0; i < primes.size(); ++i) {
+        if (n % primes[i] == 0) {
+            return primes[i];
         }
     }
     return -1;
 }
 
 mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand, const std::atomic<bool>& interrupt) {
-    mpz_class divisor = Naive(n, 10000000);
+    mpz_class divisor = Naive(n);
     if (divisor != -1) {
         return divisor;
     }
 
     // http://maths-people.anu.edu.au/~brent/pd/rpb051i.pdf
-    mpz_class c = 1 + rand.get_z_range(n+1);
-    mpz_class y = rand.get_z_range(n+1);
-    mpz_class m = rand.get_z_range(n+1);
+    mpz_class c = 1 + rand.get_z_range(n); // [1, n-1] // 3
+    mpz_class y = 1 + rand.get_z_range(n);
+    mpz_class m = 100;
 
     mpz_class r = 1;
     mpz_class q = 1;
@@ -113,7 +132,7 @@ mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand, const std:
     mpz_class x = 0;
     mpz_class k = 0;
 
-    auto f = [&n, &c] (mpz_class& x) -> mpz_class { return ((x * x ) + c) % n; };
+    auto f = [&n, &c] (const mpz_class& x) -> mpz_class { return ((x * x ) + c) % n; };
 
     while(g == 1 && !interrupt) {
         x = y;
@@ -142,9 +161,9 @@ mpz_class BrentsRhoAlgorithm(const mpz_class& n, gmp_randclass& rand, const std:
         } while(g == 1 && !interrupt);
     }
 
-    //if(g == n) {
-    // std::cout << "noo :(" << std::endl;
-    //}
+    // if(g == n) {
+    //     //std::cout << "noo :(" << std::endl;
+    // }
 
     return g;
 }

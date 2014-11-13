@@ -10,6 +10,6 @@ bin/Main.out: $(FILES)
 bin/Main.exe: $(FILES)
 	x86_64-w64-mingw32-g++ $(FLAGS) $(FILES) -o bin/Main.exe $(GMP) -static
 
-bin/Test.out: $(FILES) src/Tests.cpp
+bin/Test.out: $(FILES) src/Tests.cpp src/QuadraticSieve.hpp
 	cxxtestgen --error-printer -o  .Tests.cxxtestrunner.cpp src/Tests.cpp
 	g++ $(FLAGS) src/Functions.hpp .Tests.cxxtestrunner.cpp -o bin/Test.out $(GMP)

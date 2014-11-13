@@ -25,6 +25,8 @@ std::vector<mpz_class> Factorize(const mpz_class& number, const std::atomic<bool
 
     queue.push(number);
 
+    mpz_class left_over = number;
+
     while (!queue.empty() && !interrupt) {
         mpz_class factor = queue.front();
         queue.pop();
@@ -32,8 +34,11 @@ std::vector<mpz_class> Factorize(const mpz_class& number, const std::atomic<bool
             continue;
         }
         if (MillerRabinPrime(factor, 25, rand)) { // mpz_probab_prime_p(factor.get_mpz_t(), 25)
+            std::clog << "LOG: found -> "  << factor << std::endl;
             std::cout << "  - " << factor << std::endl;
             factors.push_back(factor);
+            left_over /= factor;
+            std::clog << "LOG: " << left_over << std::endl;
             continue;   
         }
         mpz_class divisor = BrentsRhoAlgorithm(factor, rand, interrupt);
@@ -71,15 +76,13 @@ std::vector<mpz_class> ReadNumbers(int argc, char** argv) {
 }
 
 int main(int argc, char **argv) {
-    const int sleep_for = 10;
     int timeout = std::atoi(argv[1]);
+    int sleep_for = timeout > 10 ? 10 : timeout;
+
     std::vector<mpz_class> numbers = ReadNumbers(argc, argv);
 
     std::cout << "---" << std::endl;
-    std::cout << "- :timeout: " << timeout        << std::endl;
-
-    //std::time_t end_time = Clock::to_time_t(end);
-    //std::cout << std::ctime(&end_time);
+    std::cout << "- :timeout: " << timeout << std::endl;
 
     typedef std::chrono::system_clock Clock;
 
@@ -97,8 +100,8 @@ int main(int argc, char **argv) {
 
             running = true;
 
-            std::cout << "- :index: "   << (i+1)      << std::endl;
-            std::cout << "  :number: "  << numbers[i] << std::endl;
+            std::clog << "LOG: factoring "  << numbers[i] << std::endl;
+            std::cout << "- :number: "  << numbers[i] << std::endl;
             std::cout << "  :factors: " << std::endl;
 
             std::vector<mpz_class> factors = Factorize(numbers[i], interrupt);
@@ -123,6 +126,7 @@ int main(int argc, char **argv) {
 
             if (elapsed_seconds.count() > timeout) {
                 std::cout << "  :timed_out: true" << std::endl;
+                std::clog << "LOG: timed out" << std::endl;
                 interrupt = true;
                 break;
             } else {
