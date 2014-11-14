@@ -31,11 +31,18 @@ class TestSuite : public CxxTest::TestSuite {
         }
     }
 
+    void TestTonelliShank() {
+        mpz_class test;
+        test = "10";
+        QuadraticSieve q(test);
+        TS_ASSERT_EQUALS(q.TonelliShank(13), 7);
+    }
+
     void TestQuadraticSieve() {
         mpz_class test;
-        // test = "1212121234000000000000000000000000000000000000000000000000000000000001";
-        test = "24961";
-        test = "15347";
+        test = "1212121234000000000000000000000000000000000000000000000000000000000001";
+        //test = "24960000000000001";
+        //test = "15347";
         QuadraticSieve q(test);
         q.GetFactors();
     }
