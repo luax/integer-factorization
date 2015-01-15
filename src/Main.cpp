@@ -14,6 +14,25 @@
 #include <atomic>
 
 #include "Functions.hpp"
+#include "QuadraticSieve.hpp"
+
+void FactorFound(std::vector<mpz_class>& factors, const mpz_class& factor, mpz_class& current_number) {
+    factors.push_back(factor);
+    current_number /= factor;
+    std::clog << "LOG: found factor -> "  << factor << std::endl;
+    std::clog << "LOG: current number: " << current_number << std::endl;
+    std::cout << "  - " << factor << std::endl;
+} 
+
+void TrialDivision(std::vector<mpz_class>& factors, mpz_class& n, const std::atomic<bool>& interrupt) {
+    const static std::vector<long> primes = SieveOfEratosthenes(1000000000);
+    for (size_t i = 0; i < primes.size(); ++i) {
+        if (primes[i] * primes[i] > n) break;
+        while (n % primes[i] == 0) {
+            FactorFound(factors, primes[i], n); // TODO
+        }
+    }
+}
 
 std::vector<mpz_class> Factorize(const mpz_class& number, const std::atomic<bool>& interrupt) {
     // Create random generator
@@ -23,32 +42,97 @@ std::vector<mpz_class> Factorize(const mpz_class& number, const std::atomic<bool
     std::queue<mpz_class> queue;
     std::vector<mpz_class> factors;
 
-    queue.push(number);
+    mpz_class current_number = number;
 
-    mpz_class left_over = number;
+    std::clog << "LOG: Doing trial divison " << std::endl;
 
-    while (!queue.empty() && !interrupt) {
+    TrialDivision(factors, current_number, interrupt);
+
+    queue.push(current_number);
+
+    std::clog << "LOG: Doing Pollard's rho " << std::endl;
+
+    // Clock stuff
+    typedef std::chrono::system_clock Clock;
+    Clock::system_clock::time_point thread_start;
+    Clock::system_clock::time_point end;
+    std::chrono::duration<double> elapsed_seconds;
+
+    std::atomic<bool> done(false);
+    std::atomic<bool> running(false);
+    std::atomic<bool> interrupt2(false);
+
+    std::thread t = std::thread([&] {
+        thread_start = Clock::now();
+        running = true;
+        while (!queue.empty() && !interrupt2) {
+            mpz_class factor = queue.front();
+            queue.pop();
+
+            if (factor == 1) {
+                continue;
+            }
+
+            if (MillerRabinPrime(factor, 25, rand)) {
+                FactorFound(factors, factor, current_number);
+                continue;   
+            }
+            mpz_class divisor = BrentsRhoAlgorithm(factor, rand, interrupt2);
+            queue.push(divisor);
+            queue.push(factor / divisor);
+        }
+        done = true;
+    });
+
+    Clock::system_clock::time_point now;
+    while (!done) {
+        if(!running) { continue; }
+        now = Clock::now();
+        std::chrono::duration<double> elapsed_seconds = now - thread_start;
+        if (elapsed_seconds.count() > 3000) {
+            interrupt2 = true;
+            std::clog << "LOG: Pollard's timed out" << std::endl;
+            break;
+        } else {
+            std::this_thread::sleep_for(std::chrono::seconds(100));
+        }
+    }
+    
+    t.join();
+
+    std::clog << "LOG: Doing Quadratic sieve " << std::endl;
+
+    while (!queue.empty()) {
         mpz_class factor = queue.front();
         queue.pop();
+
         if (factor == 1) {
             continue;
         }
-        if (MillerRabinPrime(factor, 25, rand)) { // mpz_probab_prime_p(factor.get_mpz_t(), 25)
-            std::clog << "LOG: found -> "  << factor << std::endl;
-            std::cout << "  - " << factor << std::endl;
-            factors.push_back(factor);
-            left_over /= factor;
-            std::clog << "LOG: " << left_over << std::endl;
+
+        if (factor != -1 && MillerRabinPrime(factor, 25, rand)) {
+            FactorFound(factors, factor, current_number);
             continue;   
         }
-        mpz_class divisor = BrentsRhoAlgorithm(factor, rand, interrupt);
-        queue.push(divisor);
-        queue.push(factor / divisor);
+
+        if (interrupt) {
+            break;
+        }
+        QuadraticSieve q(factor, 1000000, 0.5);
+        mpz_class divisor = q.GetFactor(interrupt);
+ 
+        if(divisor == -1){
+            std::clog << "DID NOT FIND ANY FACTORS!" << std::endl;
+            std::clog << "Moving on..." << std::endl;
+        }else{
+            queue.push(divisor);
+            queue.push(factor / divisor);
+        }
     }
     return factors;
 }
 
-std::string Output(std::vector<mpz_class>& factors) {
+std::string OutputFormat(std::vector<mpz_class>& factors) {
     std::sort(factors.begin(), factors.end());
     std::map <mpz_class, int> m;
     auto inc = [&m] (mpz_class value) { ++m[value]; }; 
@@ -63,14 +147,8 @@ std::string Output(std::vector<mpz_class>& factors) {
 
 std::vector<mpz_class> ReadNumbers(int argc, char** argv) {
     std::vector<mpz_class> numbers;
-    if (argc >= 3) {
-        mpz_class num;
-        num = argv[2];
-        numbers.push_back(num);
-    } else {
-        for (std::string line; std::getline(std::cin, line);) {
-            numbers.push_back(mpz_class(line));
-        }
+    for (std::string line; std::getline(std::cin, line);) {
+        numbers.push_back(mpz_class(line));
     }
     return numbers;
 }
@@ -87,7 +165,6 @@ int main(int argc, char **argv) {
     typedef std::chrono::system_clock Clock;
 
     for (size_t i = 0; i < numbers.size(); ++i) {
-        
         std::atomic<bool> done(false);
         std::atomic<bool> running(false);
         std::atomic<bool> interrupt(false);
@@ -111,11 +188,11 @@ int main(int argc, char **argv) {
             std::chrono::duration<double> elapsed_seconds  = end - thread_start;
             
             std::cout << "  :output: " << std::endl;
-            std::cout << Output(factors);       
+            std::cout << OutputFormat(factors);       
             std::cout << "  :time_elapsed: " << elapsed_seconds.count() << std::endl;
+
             done = true;
         });
-
 
         Clock::system_clock::time_point now;
         while (!done) {
@@ -135,7 +212,7 @@ int main(int argc, char **argv) {
         }
         std::clog << "LOG: waiting..." << std::endl;
         t.join();
-        std::clog << "LOG: lets go :)" << std::endl;
+        std::clog << "LOG: joined" << std::endl;
     }
 
     std::clog << "LOG: Done!" << std::endl;
